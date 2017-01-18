@@ -14,18 +14,28 @@ import com.jogamp.opengl.awt.GLCanvas;
 import com.jogamp.opengl.glu.GLU;
 import com.sun.prism.impl.BufferUtil;
 
-import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.io.IOException;
-import java.net.URL;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 
-import static com.jogamp.opengl.GL.*;
-import static com.jogamp.opengl.GL2ES1.GL_MODULATE;
-import static com.jogamp.opengl.GL2ES1.GL_TEXTURE_ENV;
-import static com.jogamp.opengl.GL2ES1.GL_TEXTURE_ENV_MODE;
+import static com.jogamp.opengl.GL.GL_BGRA;
+import static com.jogamp.opengl.GL.GL_BLEND;
+import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
+import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
+import static com.jogamp.opengl.GL.GL_LINEAR;
+import static com.jogamp.opengl.GL.GL_LINEAR_MIPMAP_LINEAR;
+import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
+import static com.jogamp.opengl.GL.GL_REPEAT;
+import static com.jogamp.opengl.GL.GL_RGB;
+import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
+import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
+import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
+import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
+import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_S;
+import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_T;
+import static com.jogamp.opengl.GL.GL_UNSIGNED_BYTE;
+import static com.jogamp.opengl.GL2ES1.*;
 import static com.jogamp.opengl.fixedfunc.GLLightingFunc.GL_SMOOTH;
 import static com.jogamp.opengl.fixedfunc.GLMatrixFunc.GL_MODELVIEW;
 import static com.jogamp.opengl.fixedfunc.GLMatrixFunc.GL_PROJECTION;
@@ -43,10 +53,10 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
     private CustomZoomListener zoomListener;
     private CustomShapeRotateListener customShapeRotateListener;
     private CustomTranslateListener customTranslateListener;
-    private int textureId;
-    private int[] textureSizes = new int[]{1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
 
-    int[] textures = new int[1];
+
+    private  int textureId;
+    private int[] textureSizes = {256,128,64,32,16,8,4,2,1};
 
     private MainCanvas() {
         this.addGLEventListener(this);
@@ -76,32 +86,62 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
         }
         GL2 gl = drawable.getGL().getGL2();
 
-        gl.glEnable(GL_TEXTURE_2D);
+        gl.glClearColor(0, 0, 0, 0);
+//
+//        gl.Rotate(90, 1, 0, 0);
+        gl.glScaled(0.8, 0.8, 0.8);
 
-        gl.glGenTextures(1, textures, 0);
+        gl.glEnable(GL_ALPHA_TEST);
+        gl.glEnable(GL_BLEND);
+        gl.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        gl.glEnable(GL_SMOOTH);
+        gl.glShadeModel(GL_SMOOTH);
 
+
+
+        int[] textureIds = new int[1];
+
+        gl.glGenTextures(1, textureIds, 0);
+        textureId = textureIds[0];
+
+        gl.glBindTexture(GL_TEXTURE_2D, textureId);
 
         gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        gl.glTexParameteri(
+                GL_TEXTURE_2D,
+                GL_TEXTURE_MIN_FILTER,
+                GL_LINEAR_MIPMAP_LINEAR
+        );
         gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         gl.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-        BufferedImage image ;
-        URL imgPath = getClass().getClassLoader().getResource("com/chalienko/resource/img.png");
-        if (imgPath == null) {
-            throw new RuntimeException("Image or path to image not found");
-        }
-        try {
-            image = ImageIO.read(imgPath);
-            DataBufferByte dbb = (DataBufferByte) image.getRaster().getDataBuffer();
+        for (int i = 0; i < textureSizes.length; i++) {
+            int size = textureSizes[i];
+
+            BufferedImage image = new BufferedImage(size/2 < 1 ? 1 : size/2 , size/2 < 1 ? 1 : size/2,
+                    BufferedImage.TYPE_4BYTE_ABGR_PRE);
+            Graphics g = image.getGraphics();
+            g.drawString("" + i, 10, 10);
+
+            g.setColor(Color.blue);
+            DataBufferByte dbb = (DataBufferByte)image.getRaster().getDataBuffer();
             byte[] data = dbb.getData();
             ByteBuffer pixels = BufferUtil.newByteBuffer(data.length);
             pixels.put(data);
             pixels.flip();
-            gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.getWidth(), image.getHeight(), 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-        } catch (IOException e) {
-            e.printStackTrace();
+
+            gl.glTexImage2D(
+                    GL_TEXTURE_2D,
+                    i,
+                    GL_RGB,
+                    image.getWidth(),
+                    image.getHeight(),
+                    0,
+                    GL_BGRA,
+                    GL_UNSIGNED_BYTE,
+                    pixels
+            );
         }
     }
 
@@ -135,7 +175,6 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
 
         gl.glColor3d(0.0f, 0.7f, 0.8f);
 
-        gl.glBindTexture(GL_TEXTURE_2D, textures[0]);
         gl.glBegin(GL2.GL_QUADS);
         int length = 25;
         gl.glTexCoord3d(-length, -length, -7);
@@ -151,7 +190,7 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
         gl.glVertex3d(length, -length, -7);
 
         gl.glEnd();
-
+        gl.glEnable(GL_TEXTURE_2D);
         double[][] shadowMatrix = Shadow.getShadowMatrix(new double[]{0, 0, 1, 7}, new double[]{10, 20, 20, 1});
         double[] shadowMas = new double[16];
         int k = 0;
@@ -194,10 +233,6 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
         double uMax = 2 * Math.PI;
         double deltaU = 0.08F;
 
-        gl.glEnable(GL_TEXTURE_2D);
-        gl.glBindTexture(GL_TEXTURE_2D, textures[0]);
-
-
         for (double tempU = u; tempU <= uMax - deltaU + 0.1; tempU += deltaU) {
             for (double tempV = v; tempV <= vMax - deltaV + 0.1; tempV += deltaV) {
 
@@ -215,7 +250,7 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
                             viewerPosition);
                     gl.glColor3d(colors[0], colors[1], colors[2]);
                 }
-                gl.glTexCoord3d(x, y,z);
+                gl.glTexCoord2d(tempU,tempV );
                 gl.glVertex3d(x, y, z);
 
                 x = SnailSurface.getX(tempU, tempV + deltaV);
@@ -229,7 +264,7 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
                             viewerPosition);
                     gl.glColor3d(colors[0], colors[1], colors[2]);
                 }
-                gl.glTexCoord3d(x, y,z);
+                gl.glTexCoord2d(tempU, tempV + deltaV);
                 gl.glVertex3d(x, y, z);
 
                 x = SnailSurface.getX(tempU + deltaU, tempV + deltaV);
@@ -243,7 +278,7 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
                             viewerPosition);
                     gl.glColor3d(colors[0], colors[1], colors[2]);
                 }
-                gl.glTexCoord3d(x, y,z);
+                gl.glTexCoord2d(tempU + deltaU, tempV + deltaV);
                 gl.glVertex3d(x, y, z);
 
                 x = SnailSurface.getX(tempU + deltaU, tempV);
@@ -257,7 +292,7 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
                             viewerPosition);
                     gl.glColor3d(colors[0], colors[1], colors[2]);
                 }
-                gl.glTexCoord3d(x, y,z);
+                gl.glTexCoord2d(tempU + deltaU, tempV);
                 gl.glVertex3d(x, y, z);
                 gl.glEnd();
             }

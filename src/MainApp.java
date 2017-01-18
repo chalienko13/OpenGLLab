@@ -1,4 +1,3 @@
-import com.chalienko.Vector;
 import com.chalienko.canvas.MainCanvas;
 import com.jogamp.opengl.awt.GLCanvas;
 import com.jogamp.opengl.util.FPSAnimator;
