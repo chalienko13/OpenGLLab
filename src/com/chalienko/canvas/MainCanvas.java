@@ -14,26 +14,18 @@ import com.jogamp.opengl.awt.GLCanvas;
 import com.jogamp.opengl.glu.GLU;
 import com.sun.prism.impl.BufferUtil;
 
-import java.awt.*;
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import static com.jogamp.opengl.GL.GL_BGRA;
-import static com.jogamp.opengl.GL.GL_BLEND;
 import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
-import static com.jogamp.opengl.GL.GL_LINEAR;
-import static com.jogamp.opengl.GL.GL_LINEAR_MIPMAP_LINEAR;
-import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
-import static com.jogamp.opengl.GL.GL_REPEAT;
 import static com.jogamp.opengl.GL.GL_RGB;
-import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
-import static com.jogamp.opengl.GL.GL_TEXTURE_MAG_FILTER;
-import static com.jogamp.opengl.GL.GL_TEXTURE_MIN_FILTER;
-import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_S;
-import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_T;
 import static com.jogamp.opengl.GL.GL_UNSIGNED_BYTE;
 import static com.jogamp.opengl.GL2ES1.*;
 import static com.jogamp.opengl.fixedfunc.GLLightingFunc.GL_SMOOTH;
@@ -46,17 +38,14 @@ import static com.jogamp.opengl.fixedfunc.GLMatrixFunc.GL_PROJECTION;
 public class MainCanvas extends GLCanvas implements GLEventListener {
 
     private static MainCanvas instance;
-
-    private GLU glu;
+    private static GLU glu = new GLU();
     private static final float DELTA_ZOOM = 1f;
 
     private CustomZoomListener zoomListener;
     private CustomShapeRotateListener customShapeRotateListener;
     private CustomTranslateListener customTranslateListener;
 
-
-    private  int textureId;
-    private int[] textureSizes = {256,128,64,32,16,8,4,2,1};
+    private int[] textureSizes = {256, 128, 64, 32, 16, 8, 4, 2, 1};
 
     private MainCanvas() {
         this.addGLEventListener(this);
@@ -71,12 +60,11 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
 
     @Override
     public void init(GLAutoDrawable drawable) {
-        glu = new GLU();
-        zoomListener = new CustomZoomListener(DELTA_ZOOM).setZoom(-14f);
-        customShapeRotateListener = new CustomShapeRotateListener();
-        customTranslateListener = new CustomTranslateListener();
-        this.addMouseMotionListener(customTranslateListener);
         if (instance != null) {
+            zoomListener = new CustomZoomListener(DELTA_ZOOM).setZoom(-14f);
+            customShapeRotateListener = new CustomShapeRotateListener();
+            customTranslateListener = new CustomTranslateListener();
+            instance.addMouseMotionListener(customTranslateListener);
             instance.addMouseMotionListener(customShapeRotateListener);
             instance.addMouseListener(customTranslateListener);
             instance.addMouseListener(customShapeRotateListener);
@@ -85,47 +73,29 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
             throw new RuntimeException("Instance of MainCanvas is null");
         }
         GL2 gl = drawable.getGL().getGL2();
-
         gl.glClearColor(0, 0, 0, 0);
-//
-//        gl.Rotate(90, 1, 0, 0);
-        gl.glScaled(0.8, 0.8, 0.8);
-
-        gl.glEnable(GL_ALPHA_TEST);
-        gl.glEnable(GL_BLEND);
-        gl.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        gl.glEnable(GL_SMOOTH);
-        gl.glShadeModel(GL_SMOOTH);
-
-
 
         int[] textureIds = new int[1];
-
         gl.glGenTextures(1, textureIds, 0);
-        textureId = textureIds[0];
+        int textureId = textureIds[0];
 
         gl.glBindTexture(GL_TEXTURE_2D, textureId);
-
-        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        gl.glTexParameteri(
-                GL_TEXTURE_2D,
-                GL_TEXTURE_MIN_FILTER,
-                GL_LINEAR_MIPMAP_LINEAR
-        );
-        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         gl.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
         for (int i = 0; i < textureSizes.length; i++) {
             int size = textureSizes[i];
+            File img = new File("src/com/chalienko/resource/img" + size + ".png");
 
-            BufferedImage image = new BufferedImage(size/2 < 1 ? 1 : size/2 , size/2 < 1 ? 1 : size/2,
-                    BufferedImage.TYPE_4BYTE_ABGR_PRE);
-            Graphics g = image.getGraphics();
-            g.drawString("" + i, 10, 10);
+            BufferedImage image =
+                    new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
 
-            g.setColor(Color.blue);
-            DataBufferByte dbb = (DataBufferByte)image.getRaster().getDataBuffer();
+            try {
+                image = ImageIO.read(img);
+            } catch (IOException e) {
+                System.err.print("Cannot read file: " + e);
+            }
+
+            DataBufferByte dbb = (DataBufferByte) image.getRaster().getDataBuffer();
             byte[] data = dbb.getData();
             ByteBuffer pixels = BufferUtil.newByteBuffer(data.length);
             pixels.put(data);
@@ -148,14 +118,11 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
     @Override
     public void reshape(GLAutoDrawable drawable, int x, int y, int width, int height) {
         GL2 gl = drawable.getGL().getGL2();
-
         if (height == 0) height = 1;
         float aspect = (float) width / height;
         gl.glMatrixMode(GL_PROJECTION);
         gl.glLoadIdentity();
-
         glu.gluPerspective(45, aspect, 1, 100.0);
-
         gl.glMatrixMode(GL_MODELVIEW);
         gl.glLoadIdentity(); // reset
     }
@@ -190,7 +157,8 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
         gl.glVertex3d(length, -length, -7);
 
         gl.glEnd();
-        gl.glEnable(GL_TEXTURE_2D);
+
+
         double[][] shadowMatrix = Shadow.getShadowMatrix(new double[]{0, 0, 1, 7}, new double[]{10, 20, 20, 1});
         double[] shadowMas = new double[16];
         int k = 0;
@@ -205,9 +173,11 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
         drawSurface(gl, true);
         gl.glPopMatrix();
 
+        gl.glEnable(GL_TEXTURE_2D);
         gl.glEnable(GL2.GL_DEPTH_TEST);
         gl.glDisable(GL2.GL_LIGHTING);
         gl.glShadeModel(GL_SMOOTH);
+
         drawSurface(gl, false);
     }
 
@@ -235,67 +205,31 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
 
         for (double tempU = u; tempU <= uMax - deltaU + 0.1; tempU += deltaU) {
             for (double tempV = v; tempV <= vMax - deltaV + 0.1; tempV += deltaV) {
-
                 gl.glBegin(GL2.GL_POLYGON);
-
-                double x = SnailSurface.getX(tempU, tempV);
-                double y = SnailSurface.getY(tempU, tempV);
-                double z = SnailSurface.getZ(tempU, tempV);
-                double[] colors;
-                if (shadow) {
-                    gl.glColor3d(0.15, 0.15, 0.15);
-                } else {
-                    colors = Light.getPaintingLight(SnailSurface.getNormal(tempV, tempU),
-                            new Vector(x - lightPosition.getX(), y - lightPosition.getY(), z - lightPosition.getZ()),
-                            viewerPosition);
-                    gl.glColor3d(colors[0], colors[1], colors[2]);
-                }
-                gl.glTexCoord2d(tempU,tempV );
-                gl.glVertex3d(x, y, z);
-
-                x = SnailSurface.getX(tempU, tempV + deltaV);
-                y = SnailSurface.getY(tempU, tempV + deltaV);
-                z = SnailSurface.getZ(tempU, tempV + deltaV);
-                if (shadow) {
-                    gl.glColor3d(0.15, 0.15, 0.15);
-                } else {
-                    colors = Light.getPaintingLight(SnailSurface.getNormal(tempV + deltaV, tempU),
-                            new Vector(x - lightPosition.getX(), y - lightPosition.getY(), z - lightPosition.getZ()),
-                            viewerPosition);
-                    gl.glColor3d(colors[0], colors[1], colors[2]);
-                }
-                gl.glTexCoord2d(tempU, tempV + deltaV);
-                gl.glVertex3d(x, y, z);
-
-                x = SnailSurface.getX(tempU + deltaU, tempV + deltaV);
-                y = SnailSurface.getY(tempU + deltaU, tempV + deltaV);
-                z = SnailSurface.getZ(tempU + deltaU, tempV + deltaV);
-                if (shadow) {
-                    gl.glColor3d(0.15, 0.15, 0.15);
-                } else {
-                    colors = Light.getPaintingLight(SnailSurface.getNormal(tempV + deltaV, tempU),
-                            new Vector(x - lightPosition.getX(), y - lightPosition.getY(), z - lightPosition.getZ()),
-                            viewerPosition);
-                    gl.glColor3d(colors[0], colors[1], colors[2]);
-                }
-                gl.glTexCoord2d(tempU + deltaU, tempV + deltaV);
-                gl.glVertex3d(x, y, z);
-
-                x = SnailSurface.getX(tempU + deltaU, tempV);
-                y = SnailSurface.getY(tempU + deltaU, tempV);
-                z = SnailSurface.getZ(tempU + deltaU, tempV);
-                if (shadow) {
-                    gl.glColor3d(0.15, 0.15, 0.15);
-                } else {
-                    colors = Light.getPaintingLight(SnailSurface.getNormal(tempV + deltaV, tempU),
-                            new Vector(x - lightPosition.getX(), y - lightPosition.getY(), z - lightPosition.getZ()),
-                            viewerPosition);
-                    gl.glColor3d(colors[0], colors[1], colors[2]);
-                }
-                gl.glTexCoord2d(tempU + deltaU, tempV);
-                gl.glVertex3d(x, y, z);
+                drawPoint(gl, tempU, tempV, shadow, lightPosition, viewerPosition);
+                drawPoint(gl, tempU, tempV + deltaV, shadow, lightPosition, viewerPosition);
+                drawPoint(gl, tempU + deltaU, tempV + deltaV, shadow, lightPosition, viewerPosition);
+                drawPoint(gl, tempU + deltaU, tempV, shadow, lightPosition, viewerPosition);
                 gl.glEnd();
             }
         }
+    }
+
+    private void drawPoint(GL2 gl, double u, double v, boolean shadow, Vector lightPosition, Vector viewerPosition) {
+        double x = SnailSurface.getX(u, v);
+        double y = SnailSurface.getY(u, v);
+        double z = SnailSurface.getZ(u, v);
+
+        double[] colors;
+        if (shadow) {
+            gl.glColor3d(0.15, 0.15, 0.15);
+        } else {
+            colors = Light.getPaintingLight(SnailSurface.getNormal(v, u),
+                    new Vector(x - lightPosition.getX(), y - lightPosition.getY(), z - lightPosition.getZ()),
+                    viewerPosition);
+            gl.glColor3d(colors[0], colors[1], colors[2]);
+        }
+        gl.glTexCoord2d(v, u);
+        gl.glVertex3d(x, y, z);
     }
 }
