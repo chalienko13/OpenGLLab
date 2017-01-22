@@ -72,48 +72,21 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
         } else {
             throw new RuntimeException("Instance of MainCanvas is null");
         }
+
         GL2 gl = drawable.getGL().getGL2();
         gl.glClearColor(0, 0, 0, 0);
 
-        int[] textureIds = new int[1];
-        gl.glGenTextures(1, textureIds, 0);
-        int textureId = textureIds[0];
-
-        gl.glBindTexture(GL_TEXTURE_2D, textureId);
+        gl.glGenTextures(1, new int[1] , 0);
+        gl.glBindTexture(GL_TEXTURE_2D, 0);
         gl.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
         for (int i = 0; i < textureSizes.length; i++) {
             int size = textureSizes[i];
-            File img = new File("src/com/chalienko/resource/img" + size + ".png");
-
-            BufferedImage image =
-                    new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-
-            try {
-                image = ImageIO.read(img);
-            } catch (IOException e) {
-                System.err.print("Cannot read file: " + e);
-            }
-
-            DataBufferByte dbb = (DataBufferByte) image.getRaster().getDataBuffer();
-            byte[] data = dbb.getData();
-            ByteBuffer pixels = BufferUtil.newByteBuffer(data.length);
-            pixels.put(data);
-            pixels.flip();
-
-            gl.glTexImage2D(
-                    GL_TEXTURE_2D,
-                    i,
-                    GL_RGB,
-                    image.getWidth(),
-                    image.getHeight(),
-                    0,
-                    GL_BGRA,
-                    GL_UNSIGNED_BYTE,
-                    pixels
-            );
+            bindTexture(gl, i, size, new File("src/com/chalienko/resource/img" + size + ".png"));
         }
     }
+
+
 
     @Override
     public void reshape(GLAutoDrawable drawable, int x, int y, int width, int height) {
@@ -144,18 +117,10 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
 
         gl.glBegin(GL2.GL_QUADS);
         int length = 25;
-        gl.glTexCoord3d(-length, -length, -7);
         gl.glVertex3d(-length, -length, -7);
-
-        gl.glTexCoord3d(-length, length, -7);
         gl.glVertex3d(-length, length, -7);
-
-        gl.glTexCoord3d(length, length, -7);
         gl.glVertex3d(length, length, -7);
-
-        gl.glTexCoord3d(length, -length, -7);
         gl.glVertex3d(length, -length, -7);
-
         gl.glEnd();
 
 
@@ -231,5 +196,24 @@ public class MainCanvas extends GLCanvas implements GLEventListener {
         }
         gl.glTexCoord2d(v, u);
         gl.glVertex3d(x, y, z);
+    }
+
+    private void bindTexture(GL2 gl, int id, int size, File texture){
+        BufferedImage image =
+                new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+
+        try {
+            image = ImageIO.read(texture);
+        } catch (IOException e) {
+            System.err.print("Cannot read file: " + e);
+        }
+
+        DataBufferByte dbb = (DataBufferByte) image.getRaster().getDataBuffer();
+        byte[] data = dbb.getData();
+        ByteBuffer pixels = BufferUtil.newByteBuffer(data.length);
+        pixels.put(data);
+        pixels.flip();
+
+        gl.glTexImage2D(GL_TEXTURE_2D, id, GL_RGB, image.getWidth(), image.getHeight(), 0, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
     }
 }
